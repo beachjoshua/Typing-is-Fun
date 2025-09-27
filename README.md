@@ -1,7 +1,7 @@
 # Typing-is-Fun
 Website for learning to type  
 
-#Instructions
+# Instructions
 First run the following command to install the requirements:  
 pip install -r requirements.txt  
   
