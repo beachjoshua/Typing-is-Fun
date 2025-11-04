@@ -11,7 +11,10 @@ CORS(app)
 def home():
     return render_template("index.html")
 
-# sends json of the data to the frontend at localhost:5000/api/weather
+# Route for the second page
+@app.route("/keyboardDemo2")
+def page2():
+    return render_template("keyboardDemo2.html")
 
 def main() -> None:
     print("test")

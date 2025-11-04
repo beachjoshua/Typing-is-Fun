@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typing is Fun - Virtual Keyboard</title>
+
+  <!--simple-keyboard CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/simple-keyboard@3.7.60/build/css/index.css"
+  />
+
+  <style>
+    body {
+      background: #f7f7f7;
+      text-align: center;
+      padding: 40px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    /* Container for keyboard */
+    .simple-keyboard {
+      transform: scale(1.4);
+      transform-origin: top center;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .simple-keyboard .hg-button {
+        font-size: 20px;
+        height: 60px;
+        line-height: 60px;
+        margin: 3px;
+    }
+
+    /* Active key color when physical key is pressed */
+    .hg-button.hg-activeButton {
+      background: #007bff !important;
+      color: white !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>Typing is Fun</h1>
+  <p>Press any key on your keyboard — it will light up below!</p>
+  <!--Container for keyboard -->
+  <div class="simple-keyboard"></div>
+
+  <!--simple-keyboard JS -->
+  <script src="https://cdn.jsdelivr.net/npm/simple-keyboard@3.7.60/build/index.js"></script>
+
+  <script>
+    // Initialize simple-keyboard
+    const Keyboard = window.SimpleKeyboard.default;
+
+    const keyboard = new Keyboard({
+      onChange: input => onChange(input),
+      onKeyPress: button => onKeyPress(button),
+      physicalKeyboardHighlight: true,
+      physicalKeyboardHighlightPress: true,
+      layout: {
+        default: [
+          "` 1 2 3 4 5 6 7 8 9 0 - = {bksp}",
+          "{tab} q w e r t y u i o p [ ] \\",
+          "{lock} a s d f g h j k l ; ' {enter}",
+          "{shift} z x c v b n m , . / {shift}",
+          "{space}"
+        ]
+      },
+      theme: "hg-theme-default hg-layout-default myTheme"
+    });
+
+    function onChange(input) {
+      document.querySelector("input").value = input;
+    }
+
+    function onKeyPress(button) {
+      console.log("Button pressed:", button);
+      if (button === "{shift}" || button === "{lock}") handleShift();
+    }
+
+    function handleShift() {
+      let currentLayout = keyboard.options.layoutName;
+      let shiftToggle = currentLayout === "default" ? "shift" : "default";
+      keyboard.setOptions({ layoutName: shiftToggle });
+    }
+
+    // Sync physical keyboard typing with input box
+    document.querySelector("input").addEventListener("input", event => {
+      keyboard.setInput(event.target.value);
+    });
+  </script>
+</body>
+</html>
