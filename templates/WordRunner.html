@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Typing Dino — exact hold + timed jump</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { margin: 0; background: #f5f5f5; font-family: system-ui, sans-serif; }
+    #wrap { max-width: 820px; margin: 0 auto; padding: 10px; }
+    #hud { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    #wordBox { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.2rem; }
+    .ok { color: #16a34a; }
+    .cursor { opacity: .5; }
+    #badgeShift { font-size: .6rem; color: #b91c1c; margin-left: .5rem; }
+    #status { font-size: .7rem; color: #555; min-height: 1.1rem; }
+    canvas { border: 1px solid #ccc; background: #fff; display: block; }
+  </style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div id="wordBox">
+      word: <span id="word"></span>
+      <span id="badgeShift" style="display:none;">(HOLD SHIFT)</span>
+      <div id="status"></div>
+    </div>
+    <div id="stats">score: <span id="score">0</span></div>
+    <div id="msg">Type → wait → Space/Enter to jump. Press R to restart.</div>
+  </div>
+  <canvas id="game" width="800" height="200"></canvas>
+</div>
+<script>
+(function() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const wordSpan = document.getElementById('word');
+  const badgeShift = document.getElementById('badgeShift');
+  const scoreSpan = document.getElementById('score');
+  const statusEl = document.getElementById('status');
+
+  const GROUND_Y = 160;
+  const DINO_X = 50;
+  const DINO_W = 32;
+  const DINO_H = 36;
+  const GRAVITY = 0.6;
+  const JUMP_VEL = -11;
+  const BASE_SPEED = 5;
+
+  const WORDS = [
+    "run","jump","code","type","home","row","game","learn","fast",
+    "space","shift","hello","world","press","track","skill","focus",
+    "train","level","speed","tutor"
+  ];
+
+  let currentWord = { text: "", requireShift: false };
+  let typed = "";
+  let wordDone = false;
+  let score = 0;
+  let gameOver = false;
+
+  const dino = {
+    x: DINO_X,
+    y: GROUND_Y - DINO_H,
+    vy: 0,
+    onGround: true,
+  };
+
+  let obstacles = [];
+  let spawnTimer = 0;
+  let speed = BASE_SPEED;
+
+  const pressed = new Set();
+
+  function pickWordText() {
+    return WORDS[Math.floor(Math.random() * WORDS.length)];
+  }
+
+  function makeNextWord() {
+    const text = pickWordText();
+    const requireShift = Math.random() < 0.3;
+    return { text, requireShift };
+  }
+
+  function setNewWord() {
+    currentWord = makeNextWord();
+    typed = "";
+    wordDone = false;
+    renderWord();
+    showStatus("");
+  }
+
+  function renderWord() {
+    const txt = currentWord.text;
+    const displayTxt = currentWord.requireShift ? txt.toUpperCase() : txt;
+    let html = "";
+    for (let i = 0; i < displayTxt.length; i++) {
+      const chDisplay = displayTxt[i];
+      if (i < typed.length) {
+        html += `<span class="ok">${chDisplay}</span>`;
+      } else {
+        html += chDisplay;
+      }
+    }
+    html += `<span class="cursor">▐</span>`;
+    wordSpan.innerHTML = html;
+    badgeShift.style.display = currentWord.requireShift ? "inline" : "none";
+  }
+
+  function showStatus(msg) {
+    statusEl.textContent = msg;
+  }
+
+  function spawnObstacle() {
+    const h = 30 + Math.floor(Math.random() * 25);
+    obstacles.push({
+      x: canvas.width + 20,
+      y: GROUND_Y - h,
+      w: 18,
+      h: h
+    });
+  }
+
+  function resetGame() {
+    score = 0;
+    scoreSpan.textContent = score;
+    obstacles = [];
+    dino.y = GROUND_Y - DINO_H;
+    dino.vy = 0;
+    dino.onGround = true;
+    spawnTimer = 0;
+    speed = BASE_SPEED;
+    gameOver = false;
+    setNewWord();
+  }
+
+  function rectsOverlap(x1,y1,w1,h1, x2,y2,w2,h2) {
+    return x1 < x2 + w2 &&
+           x1 + w1 > x2 &&
+           y1 < y2 + h2 &&
+           y1 + h1 > y2;
+  }
+
+  function update() {
+    if (!gameOver) {
+      dino.vy += GRAVITY;
+      dino.y += dino.vy;
+      if (dino.y >= GROUND_Y - DINO_H) {
+        dino.y = GROUND_Y - DINO_H;
+        dino.vy = 0;
+        dino.onGround = true;
+      }
+
+      spawnTimer -= 1;
+      if (spawnTimer <= 0) {
+        spawnObstacle();
+        spawnTimer = 90 + Math.floor(Math.random() * 80);
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed;
+        if (o.x + o.w < 0) {
+          obstacles.splice(i, 1);
+          score += 1;
+          scoreSpan.textContent = score;
+          speed = BASE_SPEED + Math.min(4, score * 0.05);
+        }
+      }
+
+      for (const o of obstacles) {
+        if (rectsOverlap(dino.x, dino.y, DINO_W, DINO_H, o.x, o.y, o.w, o.h)) {
+          gameOver = true;
+          break;
+        }
+      }
+    }
+
+    draw();
+    requestAnimationFrame(update);
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = "#888";
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y);
+    ctx.lineTo(canvas.width, GROUND_Y);
+    ctx.stroke();
+
+    ctx.fillStyle = gameOver ? "#b91c1c" : "#000";
+    ctx.fillRect(dino.x, dino.y, DINO_W, DINO_H);
+
+    ctx.fillStyle = "#555";
+    for (const o of obstacles) {
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = "#000";
+      ctx.font = "16px sans-serif";
+      ctx.fillText("GAME OVER — press R to restart", 240, 80);
+    }
+  }
+
+  function doJump() {
+    if (dino.onGround) {
+      dino.vy = JUMP_VEL;
+      dino.onGround = false;
+    }
+  }
+
+  window.addEventListener("keydown", function(e) {
+    pressed.add(e.code);
+
+    if ((e.key === "r" || e.key === "R") && gameOver) {
+      resetGame();
+      return;
+    }
+
+    if (gameOver) return;
+
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      if (wordDone) {
+        doJump();
+        setNewWord();
+      } else {
+        showStatus("Finish the word first.");
+      }
+      return;
+    }
+
+    if (e.key.length !== 1) return;
+    if (wordDone) return;
+
+    const keyLower = e.key.toLowerCase();
+    const expected = currentWord.text[typed.length];
+    const shiftHeld = pressed.has("ShiftLeft") || pressed.has("ShiftRight");
+
+    if (currentWord.requireShift) {
+      if (!shiftHeld) {
+        showStatus("Hold Shift while typing this word.");
+        return;
+      }
+    } else {
+      if (shiftHeld) {
+        showStatus("Do NOT hold Shift for this word.");
+        return;
+      }
+    }
+
+    if (keyLower === expected) {
+      typed += keyLower;
+      renderWord();
+
+      if (typed.length === currentWord.text.length) {
+        wordDone = true;
+        showStatus("Ready — press Space/Enter to jump.");
+      }
+    }
+  });
+
+  window.addEventListener("keyup", function(e) {
+    pressed.delete(e.code);
+  });
+
+  resetGame();
+  requestAnimationFrame(update);
+})();
+</script>
+</body>
+</html>

@@ -16,6 +16,10 @@ def home():
 def page2():
     return render_template("keyboardDemo2.html")
 
+@app.route("/WordRunner")
+def wordrunner():
+    return render_template("WordRunner.html")
+
 def main() -> None:
     print("test")
 
