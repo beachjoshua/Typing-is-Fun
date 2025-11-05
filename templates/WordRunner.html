@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Typing Dino — exact hold + timed jump</title>
+  <title>Word Runner</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { margin: 0; background: #f5f5f5; font-family: system-ui, sans-serif; }
@@ -39,9 +39,9 @@
   const statusEl = document.getElementById('status');
 
   const GROUND_Y = 160;
-  const DINO_X = 50;
-  const DINO_W = 32;
-  const DINO_H = 36;
+  const RUNNER_X = 50;
+  const RUNNER_W = 32;
+  const RUNNER_H = 36;
   const GRAVITY = 0.6;
   const JUMP_VEL = -11;
   const BASE_SPEED = 5;
@@ -58,9 +58,9 @@
   let score = 0;
   let gameOver = false;
 
-  const dino = {
-    x: DINO_X,
-    y: GROUND_Y - DINO_H,
+  const runner = {
+    x: RUNNER_X,
+    y: GROUND_Y - RUNNER_H,
     vy: 0,
     onGround: true,
   };
@@ -124,9 +124,9 @@
     score = 0;
     scoreSpan.textContent = score;
     obstacles = [];
-    dino.y = GROUND_Y - DINO_H;
-    dino.vy = 0;
-    dino.onGround = true;
+    runner.y = GROUND_Y - RUNNER_H;
+    runner.vy = 0;
+    runner.onGround = true;
     spawnTimer = 0;
     speed = BASE_SPEED;
     gameOver = false;
@@ -142,12 +142,12 @@
 
   function update() {
     if (!gameOver) {
-      dino.vy += GRAVITY;
-      dino.y += dino.vy;
-      if (dino.y >= GROUND_Y - DINO_H) {
-        dino.y = GROUND_Y - DINO_H;
-        dino.vy = 0;
-        dino.onGround = true;
+      runner.vy += GRAVITY;
+      runner.y += runner.vy;
+      if (runner.y >= GROUND_Y - RUNNER_H) {
+        runner.y = GROUND_Y - RUNNER_H;
+        runner.vy = 0;
+        runner.onGround = true;
       }
 
       spawnTimer -= 1;
@@ -168,7 +168,7 @@
       }
 
       for (const o of obstacles) {
-        if (rectsOverlap(dino.x, dino.y, DINO_W, DINO_H, o.x, o.y, o.w, o.h)) {
+        if (rectsOverlap(runner.x, runner.y, RUNNER_W, RUNNER_H, o.x, o.y, o.w, o.h)) {
           gameOver = true;
           break;
         }
@@ -188,7 +188,7 @@
     ctx.stroke();
 
     ctx.fillStyle = gameOver ? "#b91c1c" : "#000";
-    ctx.fillRect(dino.x, dino.y, DINO_W, DINO_H);
+    ctx.fillRect(runner.x, runner.y, RUNNER_W, RUNNER_H);
 
     ctx.fillStyle = "#555";
     for (const o of obstacles) {
@@ -203,9 +203,9 @@
   }
 
   function doJump() {
-    if (dino.onGround) {
-      dino.vy = JUMP_VEL;
-      dino.onGround = false;
+    if (runner.onGround) {
+      runner.vy = JUMP_VEL;
+      runner.onGround = false;
     }
   }
 
