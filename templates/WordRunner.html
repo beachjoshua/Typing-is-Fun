@@ -5,8 +5,8 @@
   <title>Word Runner</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body { margin: 0; background: #f5f5f5; font-family: system-ui, sans-serif; }
-    #wrap { max-width: 820px; margin: 0 auto; padding: 10px; }
+    body { margin: 0; background: #f5f5f5; font-family: system-ui, sans-serif; overflow: hidden; }
+    #wrap { max-width: 820px; margin: 0 auto; padding: 10px; position: relative; }
     #hud { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     #wordBox { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.2rem; }
     .ok { color: #16a34a; }
@@ -14,6 +14,58 @@
     #badgeShift { font-size: .6rem; color: #b91c1c; margin-left: .5rem; }
     #status { font-size: .7rem; color: #555; min-height: 1.1rem; }
     canvas { border: 1px solid #ccc; background: #fff; display: block; }
+    
+    /* Modal & Leaderboard Styles */
+    #modalOverlay {
+      display: none;
+      position: fixed; /* Changed to fixed to center on screen */
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #modalContent {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 90%;
+    }
+    h2 { margin-top: 0; }
+    input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 70%; margin-bottom: 10px; }
+    button {
+      padding: 8px 16px;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background: #15803d; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    
+    #leaderboard {
+      margin-top: 20px;
+      text-align: left;
+      max-height: 200px;
+      overflow-y: auto;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+    .score-row { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+    .score-row:last-child { border-bottom: none; }
+    .rank { font-weight: bold; width: 24px; color: #555; }
+    .pname { flex-grow: 1; }
+    .pscore { font-family: monospace; font-weight: bold; }
+    #connectionStatus { font-size: 0.7rem; color: #d9534f; margin-top: 10px; font-weight: bold; }
+    .config-alert {
+        background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; 
+        border-radius: 4px; font-size: 0.8rem; margin-bottom: 10px; display: none;
+    }
   </style>
 </head>
 <body>
@@ -25,18 +77,240 @@
       <div id="status"></div>
     </div>
     <div id="stats">score: <span id="score">0</span></div>
-    <div id="msg">Type → wait → Space/Enter to jump. Press R to restart.</div>
   </div>
-  <canvas id="game" width="800" height="200"></canvas>
+  <div id="msg" style="font-size: 0.8rem; color: #666; margin-bottom: 4px;">Type → wait → Space/Enter to jump. Press R to restart.</div>
+  
+  <div class="config-alert" id="configAlert">
+    <b>Setup Required:</b> To enable the global leaderboard, open this file in a text editor and paste your Firebase Config keys where marked.
+  </div>
+
+  <div style="position: relative;">
+    <canvas id="game" width="800" height="200"></canvas>
+    
+    <!-- Game Over / Leaderboard Modal -->
+    <div id="modalOverlay">
+      <div id="modalContent">
+        <h2>Game Over!</h2>
+        <p>Your Score: <span id="finalScore">0</span></p>
+        
+        <div id="submitSection">
+          <input type="text" id="playerName" placeholder="Enter your name" maxlength="12">
+          <button id="btnSubmit">Submit Score</button>
+        </div>
+        
+        <div id="leaderboard">
+          <h3 id="lbTitle">Top Runners</h3>
+          <div id="scoresList">Loading...</div>
+        </div>
+        
+        <p id="connectionStatus"></p>
+        <p style="font-size: 0.8rem; margin-top: 15px; color: #666;">Press <b>R</b> to restart</p>
+      </div>
+    </div>
+  </div>
 </div>
-<script>
-(function() {
+
+<!-- Firebase & Game Logic -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+  import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+  import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+  // ==========================================
+  //  STEP 1: CONFIGURATION
+  // ==========================================
+  
+  let firebaseConfig;
+  let useInternalAuth = false;
+  
+  if (typeof __firebase_config !== 'undefined') {
+    firebaseConfig = JSON.parse(__firebase_config);
+    useInternalAuth = true;
+  } else {
+    firebaseConfig = {
+      apiKey: "AIzaSyB_lN5Iwj73OE4b3Ae3xnaACHrqnFO0N7k",
+      authDomain: "wordrunner-bc696.firebaseapp.com",
+      projectId: "wordrunner-bc696",
+      storageBucket: "wordrunner-bc696.firebasestorage.app",
+      messagingSenderId: "936139248664",
+      appId: "1:936139248664:web:4075f0159bcb93c0ccdf6d"
+    };
+  }
+
+  // ==========================================
+  //  End Configuration
+  // ==========================================
+
+  let app, auth, db, appId;
+  let currentUser = null;
+  let isGlobalMode = false;
+
+  async function initSystem() {
+    try {
+      // 1. Try to initialize Firebase
+      if (!firebaseConfig || firebaseConfig.apiKey === "REPLACE_WITH_YOUR_API_KEY") {
+        throw new Error("Config not set");
+      }
+
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      appId = (typeof __app_id !== 'undefined') ? __app_id : 'word-runner-global'; // Use fixed ID for global
+
+      // 2. Authenticate
+      if (useInternalAuth && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+
+      // 3. Listen for Auth Success
+      onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        if (user) {
+          isGlobalMode = true;
+          setupGlobalLeaderboard();
+          updateConnectionStatus("Connected to Global Leaderboard", "#16a34a");
+        }
+      });
+
+    } catch (e) {
+      console.warn("Global Mode Failed:", e.message);
+      isGlobalMode = false;
+      setupLocalLeaderboard();
+      
+      if (e.message === "Config not set") {
+        document.getElementById('configAlert').style.display = 'block';
+        updateConnectionStatus("Offline Mode (Edit file to enable Global)", "#d9534f");
+      } else {
+        // Show precise error to help debugging
+        const errorMsg = e.code ? e.code : e.message;
+        updateConnectionStatus(`Offline Mode (Error: ${errorMsg})`, "#d9534f");
+      }
+    }
+  }
+
+  function updateConnectionStatus(msg, color) {
+    const el = document.getElementById('connectionStatus');
+    el.textContent = msg;
+    if(color) el.style.color = color;
+    const title = document.getElementById('lbTitle');
+    title.textContent = isGlobalMode ? "Global Top Runners" : "Local Top Runners";
+  }
+
+  // --- Global (Firebase) Logic ---
+  function setupGlobalLeaderboard() {
+    // Note: We use a fixed collection path for external usage 'word-runner-global'
+    // Or reuse the internal path structure if defined
+    const collName = 'leaderboard';
+    const path = useInternalAuth 
+        ? collection(db, 'artifacts', appId, 'public', 'data', collName)
+        : collection(db, 'scores'); // Simplified path for user's own project
+
+    onSnapshot(path, (snapshot) => {
+      const scores = [];
+      snapshot.forEach(doc => scores.push(doc.data()));
+      scores.sort((a, b) => b.score - a.score);
+      renderLeaderboard(scores.slice(0, 10));
+    }, (err) => {
+      console.error("Leaderboard error", err);
+      const errText = err.code ? err.code : err.message;
+      updateConnectionStatus(`Connection Lost: ${errText}`, "#d9534f");
+    });
+  }
+
+  async function submitGlobalScore(name, score) {
+    if (!db || !currentUser) return;
+    
+    const collName = 'leaderboard';
+    const path = useInternalAuth 
+        ? collection(db, 'artifacts', appId, 'public', 'data', collName)
+        : collection(db, 'scores');
+
+    await addDoc(path, {
+      name: name || "Anonymous",
+      score: score,
+      uid: currentUser.uid,
+      timestamp: Date.now()
+    });
+  }
+
+  // --- Local (LocalStorage) Logic ---
+  function setupLocalLeaderboard() {
+    const localData = localStorage.getItem('wordRunner_scores');
+    let scores = localData ? JSON.parse(localData) : [];
+    scores.sort((a, b) => b.score - a.score);
+    renderLeaderboard(scores.slice(0, 10));
+  }
+
+  function submitLocalScore(name, score) {
+    const localData = localStorage.getItem('wordRunner_scores');
+    let scores = localData ? JSON.parse(localData) : [];
+    scores.push({
+      name: name || "Player",
+      score: score,
+      timestamp: Date.now()
+    });
+    localStorage.setItem('wordRunner_scores', JSON.stringify(scores));
+    setupLocalLeaderboard();
+  }
+
+  // --- Shared UI Logic ---
+  function renderLeaderboard(scores) {
+    const listEl = document.getElementById('scoresList');
+    if (scores.length === 0) {
+      listEl.innerHTML = "<div style='text-align:center; color:#999;'>No scores yet.</div>";
+      return;
+    }
+    let html = "";
+    scores.forEach((s, idx) => {
+      const safeName = (s.name || "Anon").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      html += `
+        <div class="score-row">
+          <span class="rank">#${idx + 1}</span>
+          <span class="pname">${safeName}</span>
+          <span class="pscore">${s.score}</span>
+        </div>`;
+    });
+    listEl.innerHTML = html;
+  }
+
+  async function handleScoreSubmit(name, score) {
+    const btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    try {
+      if (isGlobalMode) {
+        await submitGlobalScore(name, score);
+      } else {
+        submitLocalScore(name, score);
+      }
+      btn.textContent = "Saved!";
+      document.getElementById('submitSection').style.display = 'none';
+    } catch (e) {
+      console.error("Save failed:", e);
+      btn.textContent = "Error";
+      btn.disabled = false;
+      const errText = e.code ? e.code : e.message;
+      updateConnectionStatus(`Save Failed: ${errText}`, "#d9534f");
+    }
+  }
+
+  // Start Systems
+  initSystem();
+
+  // --- Game Logic ---
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const wordSpan = document.getElementById('word');
   const badgeShift = document.getElementById('badgeShift');
   const scoreSpan = document.getElementById('score');
   const statusEl = document.getElementById('status');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const finalScoreSpan = document.getElementById('finalScore');
+  const nameInput = document.getElementById('playerName');
+  const btnSubmit = document.getElementById('btnSubmit');
 
   const GROUND_Y = 160;
   const RUNNER_X = 50;
@@ -130,6 +404,13 @@
     spawnTimer = 0;
     speed = BASE_SPEED;
     gameOver = false;
+    
+    // UI Reset
+    modalOverlay.style.display = 'none';
+    document.getElementById('submitSection').style.display = 'block';
+    btnSubmit.textContent = "Submit Score";
+    btnSubmit.disabled = false;
+
     setNewWord();
   }
 
@@ -138,6 +419,19 @@
            x1 + w1 > x2 &&
            y1 < y2 + h2 &&
            y1 + h1 > y2;
+  }
+
+  function handleGameOver() {
+    gameOver = true;
+    finalScoreSpan.textContent = score;
+    modalOverlay.style.display = 'flex';
+    nameInput.focus();
+    
+    // If internal mode, refresh via snapshot is automatic.
+    // If local mode, refresh manual.
+    if (!isGlobalMode) {
+      setupLocalLeaderboard();
+    }
   }
 
   function update() {
@@ -169,7 +463,7 @@
 
       for (const o of obstacles) {
         if (rectsOverlap(runner.x, runner.y, RUNNER_W, RUNNER_H, o.x, o.y, o.w, o.h)) {
-          gameOver = true;
+          handleGameOver();
           break;
         }
       }
@@ -194,12 +488,6 @@
     for (const o of obstacles) {
       ctx.fillRect(o.x, o.y, o.w, o.h);
     }
-
-    if (gameOver) {
-      ctx.fillStyle = "#000";
-      ctx.font = "16px sans-serif";
-      ctx.fillText("GAME OVER — press R to restart", 240, 80);
-    }
   }
 
   function doJump() {
@@ -208,15 +496,28 @@
       runner.onGround = false;
     }
   }
+  
+  btnSubmit.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if(name) {
+      handleScoreSubmit(name, score);
+    }
+  });
 
   window.addEventListener("keydown", function(e) {
-    pressed.add(e.code);
+    // Fix: Ignore game keys if typing in the name input
+    if (gameOver && e.target === nameInput) {
+      if (e.key === "Enter") {
+        btnSubmit.click();
+      }
+      return;
+    }
 
+    pressed.add(e.code);
     if ((e.key === "r" || e.key === "R") && gameOver) {
       resetGame();
       return;
     }
-
     if (gameOver) return;
 
     if (e.key === " " || e.key === "Enter") {
@@ -266,7 +567,6 @@
 
   resetGame();
   requestAnimationFrame(update);
-})();
 </script>
 </body>
 </html>
