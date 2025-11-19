@@ -42,9 +42,9 @@
   const RUNNER_X = 50;
   const RUNNER_W = 32;
   const RUNNER_H = 36;
-  const GRAVITY = 0.6;
+  const GRAVITY = 0.3;
   const JUMP_VEL = -11;
-  const BASE_SPEED = 5;
+  const BASE_SPEED = 2;
 
   const WORDS = [
     "run","jump","code","type","home","row","game","learn","fast",
@@ -153,7 +153,7 @@
       spawnTimer -= 1;
       if (spawnTimer <= 0) {
         spawnObstacle();
-        spawnTimer = 90 + Math.floor(Math.random() * 80);
+        spawnTimer = 250 + Math.floor(Math.random() * 80);
       }
 
       for (let i = obstacles.length - 1; i >= 0; i--) {

@@ -20,6 +20,10 @@ def page2():
 def wordrunner():
     return render_template("WordRunner.html")
 
+@app.route("/testLesson")
+def testLesson():
+    return render_template("testLesson.html")
+
 def main() -> None:
     print("test")
 

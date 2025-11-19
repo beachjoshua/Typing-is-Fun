@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typing Practice</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/simple-keyboard@3.7.60/build/css/index.css"
+  />
+
+  <style>
+    body {
+      background: #f7f7f7;
+      text-align: center;
+      padding: 40px;
+      font-family: Arial, sans-serif;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #textToType {
+      font-size: 22px;
+      max-width: 700px;
+      margin: 20px auto;
+      line-height: 1.5;
+    }
+
+    #typedOutput {
+      font-size: 22px;
+      margin: 20px auto;
+      max-width: 700px;
+      min-height: 60px;
+      border: 2px solid #ccc;
+      padding: 15px;
+      background: white;
+    }
+
+    .correct {
+      color: green;
+    }
+
+    .incorrect {
+      color: red;
+      text-decoration: underline;
+    }
+
+    /* Smaller keyboard centered at bottom */
+    .keyboard-wrapper {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) scale(1.8);
+      transform-origin: bottom center;
+    }
+
+    .simple-keyboard .hg-button {
+      font-size: 18px;
+      height: 45px;
+      line-height: 45px;
+      margin: 2px;
+    }
+
+    .hg-button.hg-activeButton {
+      background: #007bff !important;
+      color: white !important;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Typing Practice</h1>
+  <p>Type the text below. Correct letters are green, mistakes turn red. You can use backspace.</p>
+
+  <div id="textToType">
+    The quick brown fox jumps over the lazy dog.
+  </div>
+
+  <div id="typedOutput"></div>
+
+  <div class="keyboard-wrapper">
+    <div class="simple-keyboard"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/simple-keyboard@3.7.60/build/index.js"></script>
+
+  <script>
+  const targetText = document.getElementById("textToType").innerText;
+  const typedOutput = document.getElementById("typedOutput");
+
+  let typed = "";
+
+  function updateHighlighting() {
+    let resultHTML = "";
+    for (let i = 0; i < typed.length; i++) {
+      resultHTML += (typed[i] === targetText[i])
+        ? `<span class="correct">${typed[i]}</span>`
+        : `<span class="incorrect">${typed[i]}</span>`;
+    }
+    resultHTML += `<span style="color:#bbb;">${targetText.slice(typed.length)}</span>`;
+    typedOutput.innerHTML = resultHTML;
+  }
+
+  const Keyboard = window.SimpleKeyboard.default;
+
+  const keyboard = new Keyboard({
+    onKeyPress: key => {
+      // Only virtual keyboard clicks go through here now
+      handleKey(key);
+    },
+
+    // Completely disable physical keyboard integration
+    physicalKeyboardHighlight: true,
+    physicalKeyboardHighlightPress: false,
+    usePhysicalKeyboard: false,
+
+    layout: {
+      default: [
+        "` 1 2 3 4 5 6 7 8 9 0 - = {bksp}",
+        "{tab} q w e r t y u i o p [ ] \\",
+        "{lock} a s d f g h j k l ; ' {enter}",
+        "{shift} z x c v b n m , . / {shift}",
+        "{space}"
+      ]
+    }
+  });
+
+  function handleKey(key) {
+    if (key === "{bksp}") {
+      typed = typed.slice(0, -1);
+    } else if (key === "{space}") {
+      typed += " ";
+    } else if (!key.startsWith("{")) {
+      typed += key;
+    }
+
+    updateHighlighting();
+  }
+
+  // PHYSICAL KEYBOARD
+  document.addEventListener("keydown", e => {
+    // Prevent default typing into whatever element is focused
+    if (e.key.length === 1 || e.key === "Backspace" || e.key === "Enter") {
+      e.preventDefault();
+    }
+
+    if (e.key.length === 1) {
+      typed += e.key;
+    } else if (e.key === "Backspace") {
+      typed = typed.slice(0, -1);
+    } else if (e.key === "Enter") {
+      typed += "\n";
+    }
+
+    updateHighlighting();
+  });
+</script>
+
+
+
+
+
+
+
+</body>
+</html>
