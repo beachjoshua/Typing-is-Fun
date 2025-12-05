@@ -7,6 +7,23 @@
   <style>
     body { margin: 0; background: #f5f5f5; font-family: system-ui, sans-serif; overflow: hidden; }
     #wrap { max-width: 820px; margin: 0 auto; padding: 10px; position: relative; }
+    
+    /* Navigation Button */
+    #btnHome {
+      display: inline-block;
+      margin-bottom: 10px;
+      text-decoration: none;
+      color: #555;
+      font-weight: bold;
+      font-size: 0.9rem;
+      border: 1px solid #ccc;
+      padding: 6px 12px;
+      border-radius: 4px;
+      background: white;
+      transition: background 0.1s;
+    }
+    #btnHome:hover { background: #e5e5e5; color: #333; }
+
     #hud { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
     #wordBox { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.2rem; }
     .ok { color: #16a34a; }
@@ -51,16 +68,43 @@
     #leaderboard {
       margin-top: 20px;
       text-align: left;
-      max-height: 200px;
-      overflow-y: auto;
       border-top: 1px solid #eee;
       padding-top: 10px;
     }
-    .score-row { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+
+    #scoresList {
+      max-height: 200px;
+      overflow-y: auto; 
+      padding-right: 5px;
+    }
+
+    #scoresList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #scoresList::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    #scoresList::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 3px;
+    }
+    #scoresList::-webkit-scrollbar-thumb:hover {
+      background: #999;
+    }
+
+    .score-row { 
+      display: flex; 
+      justify-content: space-between; 
+      font-size: 0.9rem; 
+      padding: 6px 4px; 
+      border-bottom: 1px solid #f0f0f0; 
+    }
     .score-row:last-child { border-bottom: none; }
-    .rank { font-weight: bold; width: 24px; color: #555; }
-    .pname { flex-grow: 1; }
-    .pscore { font-family: monospace; font-weight: bold; }
+    .rank { font-weight: bold; width: 30px; color: #555; }
+    .pname { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+    .pscore { font-family: monospace; font-weight: bold; min-width: 40px; text-align: right; }
+
     #connectionStatus { font-size: 0.7rem; color: #d9534f; margin-top: 10px; font-weight: bold; }
     .config-alert {
         background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; 
@@ -70,6 +114,8 @@
 </head>
 <body>
 <div id="wrap">
+  <a href="/" id="btnHome">← Main Menu</a>
+
   <div id="hud">
     <div id="wordBox">
       word: <span id="word"></span>
@@ -87,7 +133,6 @@
   <div style="position: relative;">
     <canvas id="game" width="800" height="200"></canvas>
     
-    <!-- Game Over / Leaderboard Modal -->
     <div id="modalOverlay">
       <div id="modalContent">
         <h2>Game Over!</h2>
@@ -99,7 +144,7 @@
         </div>
         
         <div id="leaderboard">
-          <h3 id="lbTitle">Top Runners</h3>
+          <h3 id="lbTitle" style="margin: 0 0 10px 0;">Top Runners</h3>
           <div id="scoresList">Loading...</div>
         </div>
         
@@ -155,8 +200,8 @@
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
       db = getFirestore(app);
-      appId = (typeof __app_id !== 'undefined') ? __app_id : 'word-runner-global'; // Use fixed ID for global
-
+      appId = (typeof __app_id !== 'undefined') ? __app_id : 'word-runner-global';
+      
       // 2. Authenticate
       if (useInternalAuth && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
         await signInWithCustomToken(auth, __initial_auth_token);
@@ -259,7 +304,7 @@
   function renderLeaderboard(scores) {
     const listEl = document.getElementById('scoresList');
     if (scores.length === 0) {
-      listEl.innerHTML = "<div style='text-align:center; color:#999;'>No scores yet.</div>";
+      listEl.innerHTML = "<div style='text-align:center; color:#999; padding:10px;'>No scores yet.</div>";
       return;
     }
     let html = "";
