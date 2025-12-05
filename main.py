@@ -16,13 +16,25 @@ def home():
 def page2():
     return render_template("keyboardDemo2.html")
 
+# Route for WordRunner Game
 @app.route("/WordRunner")
 def wordrunner():
     return render_template("WordRunner.html")
 
+# Route for Lessons
 @app.route("/testLesson")
 def testLesson():
     return render_template("testLesson.html")
+
+# Route for World Map
+@app.route("/levels")
+def levelMap():
+    return render_template("levelMap.html")
+
+# Route for Rhythm Game
+@app.route("/rhythm")
+def rhythm_game():
+    return render_template("rhythmGame.html")
 
 def main() -> None:
     print("test")
