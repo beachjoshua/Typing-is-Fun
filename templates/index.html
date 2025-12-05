@@ -1,13 +1,242 @@
 <!DOCTYPE html>
 <html lang="en">
-<body>
-  <h1>Typing is Fun</h1>
-  <p>Basic frontend to show how to go from page to page</p>
-
-  <button onclick="window.location.href='/testLesson'">Go to Test Lesson</button>
-  <!--<button onclick="window.location.href='/keyboardDemo2'">Go to keyboard demo</button>-->
-  <button onclick="window.location.href='/WordRunner'">Go to Word Runner Proof of Concept</button>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⌨️</text></svg>">
+  <title>Typing is Fun!</title>
   
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Background Gradients */
+      --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+      
+      /* Card Colors */
+      --card-bg: #ffffff;
+      
+      /* Text Colors */
+      --text-main: #2d3436;
+      --text-desc: #4a5568; 
+      
+      /* Button Colors */
+      --btn-blue: #0984e3;
+      --btn-red: #d63031;
+      --btn-purple: #800080;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Nunito', sans-serif;
+      background: #e0eafc; 
+      background: linear-gradient(to right, #cfdef3, #e0eafc); 
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* --- Header --- */
+    header {
+      margin-top: 3rem;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      color: #6c5ce7;
+      margin: 0;
+      text-shadow: 2px 2px 0px #fff;
+      overflow: hidden; 
+      border-right: .15em solid orange; 
+      white-space: nowrap; 
+      margin: 0 auto; 
+      letter-spacing: .05em; 
+      animation: 
+        typing 2s steps(14, end),
+        blink-caret .75s step-end infinite;
+    }
+
+    p.subtitle {
+      font-size: 1.5rem;
+      color: #2d3436;
+      margin-top: 10px;
+      font-weight: 700;
+    }
+
+    /* --- Menu Container --- */
+    .menu-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 40px;
+      max-width: 1200px;
+      width: 100%;
+      padding: 20px;
+      /* Default align-items is stretch*/
+    }
+
+    /* --- Cards --- */
+    .game-card {
+      background: var(--card-bg);
+      border-radius: 30px;
+      width: 350px;
+      padding: 40px 30px;
+      text-align: center;
+      text-decoration: none;
+      color: var(--text-main);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      
+      display: flex;            /* Flexbox */
+      flex-direction: column;   /* Stack items vertically */
+      align-items: center;      /* Center items horizontally */
+      
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                  background-color 0.3s ease, 
+                  box-shadow 0.3s ease;
+      
+      border: 5px solid transparent;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    /* LESSON CARD */
+    .card-lesson {
+      border-color: #74b9ff;
+    }
+    .card-lesson:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 20px 35px rgba(79, 172, 254, 0.3);
+      background-color: #f0f9ff; 
+    }
+    .card-lesson .icon { background: #dff9fb; color: var(--btn-blue); }
+    
+    /* GAME CARDS */
+    .card-game {
+      border-color: #ff7675;
+    }
+    .card-game:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 20px 35px rgba(255, 118, 117, 0.3);
+      background-color: #fff0f0; 
+    }
+    .card-game .icon { background: #ffeaa7; color: var(--btn-red); }
+
+    .card-game2 {
+      border-color: #800080;
+    }
+    .card-game2:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 0 20px 35px rgba(237, 128, 233, 0.3);
+      background-color: #fff0f0; 
+    }
+    .card-game2 .icon { background: #CBC3E3; color: var(--btn-purple);}
+
+    /* Icons */
+    .icon {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .game-card:hover .icon {
+        transform: scale(1.1);
+    }
+
+    .game-card h2 {
+      font-size: 2rem;
+      margin: 0 0 10px;
+      font-weight: 800;
+      color: #2d3436;
+    }
+
+    .game-card p {
+      font-size: 1.15rem;
+      color: var(--text-desc);
+      margin-bottom: 30px;
+      line-height: 1.5;
+      font-weight: 600;
+      flex-grow: 1;
+    }
+
+    /* "Start" Buttons inside cards */
+    .btn-fake {
+      display: inline-block;
+      padding: 12px 30px;
+      color: white;
+      border-radius: 50px;
+      font-weight: 800;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease;
+      margin-top: auto;
+    }
+    
+    .game-card:hover .btn-fake {
+        transform: scale(1.05);
+    }
+
+    /* Animations */
+    @keyframes typing {
+      from { width: 0 }
+      to { width: 100% }
+    }
+    @keyframes blink-caret {
+      from, to { border-color: transparent }
+      50% { border-color: orange; }
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+      h1 { font-size: 2.5rem; }
+      .menu-container { gap: 20px; }
+      .game-card { width: 100%; max-width: 400px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Typing is Fun!</h1>
+    <p class="subtitle">Select a mode to get started</p>
+  </header>
+
+  <div class="menu-container">
+    
+    <a href="/levels" class="game-card card-lesson">
+      <div class="icon">🎓</div>
+      <h2>Learn to Type</h2>
+      <p>New to typing? Start here! Follow the highlighted keys and master the keyboard.</p>
+      <span class="btn-fake" style="background: var(--btn-blue);">Start Lesson</span>
+    </a>
+
+    <a href="/WordRunner" class="game-card card-game">
+      <div class="icon">🏃</div>
+      <h2>Word Runner</h2>
+      <p>Ready for a challenge? Type fast to jump over obstacles and score the highest!</p>
+      <span class="btn-fake" style="background: var(--btn-red);">Play Game</span>
+    </a>
+
+    <a href="/rhythm" class="game-card card-game2">
+        <div class="icon">🥁</div>
+        <h2>Rhythm Typer</h2>
+        <p>Watch the falling letters and press them at the perfect time!</p>
+        <span class="btn-fake" style="background: var(--btn-purple);">Play Game</span>
+    </a>
+  </div>
 
 </body>
 </html>
