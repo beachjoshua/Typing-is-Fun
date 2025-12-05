@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rhythm Typer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+      --hit-perfect: #00b894;
+      --hit-good: #fdcb6e;
+      --hit-miss: #d63031;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg-gradient);
+      font-family: 'Nunito', sans-serif;
+      overflow: hidden;
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* HUD */
+    #hud {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      padding: 20px;
+      font-weight: 900;
+      font-size: 1.5rem;
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+      z-index: 10;
+    }
+
+    /* Game Container */
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px; 
+      height: 85vh;
+      border-left: 2px solid rgba(255,255,255,0.1);
+      border-right: 2px solid rgba(255,255,255,0.1);
+      background: rgba(0,0,0,0.3);
+      box-shadow: 0 0 50px rgba(0,0,0,0.5);
+    }
+
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* Floating Feedback */
+    .feedback {
+      position: absolute;
+      left: 50%;
+      top: 60%;
+      transform: translate(-50%, -50%);
+      font-size: 4rem;
+      font-weight: 900;
+      pointer-events: none;
+      opacity: 0;
+      animation: floatUp 0.5s ease-out forwards;
+      text-shadow: 0 0 20px rgba(255,255,255,0.5);
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(0.5); }
+      50% { transform: translate(-50%, -30px) scale(1.2); }
+      100% { opacity: 0; transform: translate(-50%, -80px) scale(1); }
+    }
+
+    /* Start Overlay */
+    #start-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      backdrop-filter: blur(5px);
+    }
+    
+    h1 { font-size: 4rem; margin-bottom: 10px; color: #a29bfe; text-shadow: 0 0 30px #6c5ce7; }
+    p { font-size: 1.5rem; color: #dfe6e9; margin-bottom: 40px; max-width: 600px; text-align: center; line-height: 1.5; }
+    
+    .btn {
+      padding: 15px 50px;
+      font-size: 1.8rem;
+      background: #6c5ce7;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: 900;
+      box-shadow: 0 0 30px rgba(108, 92, 231, 0.6);
+      transition: transform 0.1s;
+    }
+    .btn:hover { transform: scale(1.1); background: #a29bfe; }
+
+    /* Nav */
+    .back-btn {
+      position: absolute;
+      top: 20px; left: 20px;
+      color: rgba(255,255,255,0.5);
+      text-decoration: none;
+      font-weight: bold;
+      z-index: 100;
+      font-size: 1.1rem;
+    }
+    .back-btn:hover { color: white; }
+  </style>
+</head>
+<body>
+
+  <a href="/" class="back-btn">← Home</a>
+
+  <div id="hud">
+    <div id="score">Score: 0</div>
+    <div id="combo" style="color: #fdcb6e;">Combo: 0</div>
+  </div>
+
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="start-overlay">
+      <h1>Rhythm Typer</h1>
+      <p>8 Lanes. 8 Keys.<br>Put your fingers on the Home Row: <b>A S D F J K L ;</b><br>Press the key as it hits the circle!</p>
+      <button class="btn" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const container = document.getElementById('game-container');
+
+  function resize() {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // --- CONFIG ---
+  const KEYS = ['A', 'S', 'D', 'F', 'J', 'K', 'L', ';'];
+  
+  const LANE_COLORS = [
+      '#74b9ff', '#0984e3', '#00cec9', '#00b894', // Left
+      '#fdcb6e', '#e17055', '#d63031', '#e84393'  // Right
+  ];
+
+  const LANES = 8;
+  const HIT_Y_PCT = 0.85; 
+  const BASE_SPEED = 2.0; 
+  const SPEED_INC = 0.2;  
+  const POINTS_PER_LEVEL = 1000;
+
+  let notes = [];
+  let score = 0;
+  let combo = 0;
+  let running = false;
+  let speed = BASE_SPEED;
+  
+  // Timer for spawning
+  let framesSinceSpawn = 0;
+  
+  let consecutiveMisses = 0;
+  let speedReduction = 0;
+  let laneEffects = [0, 0, 0, 0, 0, 0, 0, 0];
+
+  class Note {
+    constructor(laneIndex) {
+      this.lane = laneIndex;
+      this.char = KEYS[laneIndex]; 
+      
+      const laneWidth = canvas.width / LANES;
+      this.x = (laneIndex * laneWidth) + (laneWidth / 2);
+      
+      this.y = -50;
+      this.active = true;
+      this.color = LANE_COLORS[laneIndex];
+    }
+
+    update() {
+      this.y += speed;
+    }
+
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.fill();
+      
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = this.color;
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "white";
+      ctx.font = "bold 20px Nunito";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(this.char, this.x, this.y);
+    }
+  }
+
+  function startGame() {
+    document.getElementById('start-overlay').style.display = 'none';
+    running = true;
+    score = 0;
+    combo = 0;
+    speed = BASE_SPEED;
+    notes = [];
+    laneEffects = [0, 0, 0, 0, 0, 0, 0, 0];
+    
+    consecutiveMisses = 0;
+    speedReduction = 0;
+    framesSinceSpawn = 0;
+    
+    updateHUD();
+    loop();
+  }
+
+  function loop() {
+    if (!running) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Update visual flashes
+    laneEffects.forEach((val, idx) => {
+        if(val > 0) laneEffects[idx] = Math.max(0, val - 0.05);
+    });
+
+    drawGrid();
+    drawTargetLine();
+
+    // --- DYNAMIC SPAWNING LOGIC ---
+    // Faster speed = more notes as well
+    // Formula: 150 / speed. 
+    // Ex: Speed 2.0 -> 75 frames. Speed 5.0 -> 30 frames.
+    const dynamicSpawnRate = Math.floor(150 / speed);
+    
+    framesSinceSpawn++;
+    if (framesSinceSpawn >= dynamicSpawnRate) {
+      const lane = Math.floor(Math.random() * LANES);
+      notes.push(new Note(lane));
+      framesSinceSpawn = 0; // Reset timer
+    }
+    
+    // Calculate speed (score based)
+    let calculatedSpeed = BASE_SPEED + (Math.floor(score / POINTS_PER_LEVEL) * SPEED_INC);
+    speed = Math.max(1.5, calculatedSpeed - speedReduction);
+
+    // Update notes
+    for (let i = notes.length - 1; i >= 0; i--) {
+      let n = notes[i];
+      n.update();
+      n.draw();
+
+      if (n.y > canvas.height + 40) {
+        if (n.active) {
+            handleMiss();
+        }
+        notes.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+  
+  function handleMiss() {
+      triggerFeedback("Miss", "miss");
+      combo = 0;
+      consecutiveMisses++;
+      
+      if (consecutiveMisses >= 3) {
+          speedReduction += 0.5;
+          consecutiveMisses = 0; 
+      }
+      
+      updateHUD();
+  }
+
+  function drawGrid() {
+    const w = canvas.width / LANES;
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 1;
+    
+    for (let i = 1; i < LANES; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * w, 0);
+      ctx.lineTo(i * w, canvas.height);
+      ctx.stroke();
+    }
+  }
+
+  function drawTargetLine() {
+    const y = canvas.height * HIT_Y_PCT;
+    const w = canvas.width / LANES;
+
+    for (let i = 0; i < LANES; i++) {
+        const x = (i * w) + (w/2);
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 25, 0, Math.PI * 2);
+        ctx.lineWidth = 3;
+        
+        if (laneEffects[i] > 0) {
+            ctx.fillStyle = `rgba(0, 230, 118, ${laneEffects[i]})`; 
+            ctx.strokeStyle = `rgba(0, 230, 118, ${laneEffects[i]})`;
+            ctx.shadowBlur = 20 * laneEffects[i];
+            ctx.shadowColor = "#00e676";
+            ctx.fill();
+        } else {
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.fillStyle = "rgba(255,255,255,0.05)";
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0; 
+
+        // Draw key labels
+        ctx.fillStyle = "rgba(255,255,255,0.8)";
+        ctx.font = "bold 24px Nunito";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        if (laneEffects[i] > 0.5) ctx.fillStyle = "rgba(0,0,0,0.6)";
+        
+        ctx.fillText(KEYS[i], x, y);
+    }
+  }
+
+  window.addEventListener('keydown', e => {
+    if (!running) return;
+    
+    const key = e.key.toUpperCase();
+    const laneIndex = KEYS.indexOf(key);
+    
+    if (laneIndex === -1) return;
+
+    const targetY = canvas.height * HIT_Y_PCT;
+    let hitNoteIndex = -1;
+    let minDist = 1000;
+
+    for (let i = 0; i < notes.length; i++) {
+        if (notes[i].lane === laneIndex && notes[i].active) {
+            const dist = Math.abs(notes[i].y - targetY);
+            if (dist < minDist) {
+                minDist = dist;
+                hitNoteIndex = i;
+            }
+        }
+    }
+
+    if (hitNoteIndex !== -1) {
+        if (minDist < 20) {
+            handleHit(hitNoteIndex, laneIndex, "Perfect!", "perfect");
+        } else if (minDist < 50) {
+            handleHit(hitNoteIndex, laneIndex, "Good", "good");
+        } else if (minDist < 100) {
+            handleHit(hitNoteIndex, laneIndex, "Okay", "good");
+        }
+    }
+  });
+
+  function handleHit(noteIdx, laneIdx, text, type) {
+    notes[noteIdx].active = false; 
+    notes.splice(noteIdx, 1); 
+
+    laneEffects[laneIdx] = 1.0; 
+    consecutiveMisses = 0; 
+
+    if (type === "perfect") { score += 100; combo++; }
+    else if (type === "good") { score += 50; combo++; }
+    
+    updateHUD();
+    triggerFeedback(text, type);
+  }
+
+  function triggerFeedback(text, type) {
+    const el = document.createElement('div');
+    el.className = 'feedback';
+    el.innerText = text;
+    
+    if (type === "perfect") el.style.color = "#00cec9";
+    if (type === "good") el.style.color = "#fdcb6e";
+    if (type === "miss") el.style.color = "#d63031";
+
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 600);
+  }
+
+  function updateHUD() {
+    document.getElementById('score').innerText = `Score: ${score}`;
+    document.getElementById('combo').innerText = `Combo: ${combo}`;
+  }
+
+</script>
+</body>
+</html>
